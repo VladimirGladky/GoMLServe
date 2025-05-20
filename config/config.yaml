@@ -1,7 +1,5 @@
-grpc_port: 50051
-grpc_host: localhost
-grpc_gateway_port: 8080
-grpc_gateway_host: localhost
+port: 6060
+host: localhost
 
 Postgres:
   postgres_host: ${POSTGRES_HOST}

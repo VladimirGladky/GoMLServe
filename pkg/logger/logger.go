@@ -6,32 +6,22 @@ import (
 )
 
 const (
-	Key       = "logger"
-	RequestID = "requestID"
+	Key = "logger"
 )
 
 type Logger struct {
 	l *zap.Logger
 }
 
-func (l Logger) Info(ctx context.Context, msg string, fields ...zap.Field) {
-	if ctx.Value(RequestID) != nil {
-		fields = append(fields, zap.String(RequestID, ctx.Value(RequestID).(string)))
-	}
+func (l Logger) Info(msg string, fields ...zap.Field) {
 	l.l.Info(msg, fields...)
 }
 
-func (l Logger) Error(ctx context.Context, msg string, fields ...zap.Field) {
-	if ctx.Value(RequestID) != nil {
-		fields = append(fields, zap.String(RequestID, ctx.Value(RequestID).(string)))
-	}
+func (l Logger) Error(msg string, fields ...zap.Field) {
 	l.l.Error(msg, fields...)
 }
 
-func (l Logger) Fatal(ctx context.Context, msg string, fields ...zap.Field) {
-	if ctx.Value(RequestID) != nil {
-		fields = append(fields, zap.String(RequestID, ctx.Value(RequestID).(string)))
-	}
+func (l Logger) Fatal(msg string, fields ...zap.Field) {
 	l.l.Fatal(msg, fields...)
 }
 

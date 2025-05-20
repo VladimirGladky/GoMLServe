@@ -6,16 +6,12 @@ import (
 	"regexp"
 )
 
-type RegisterRequest struct {
+type Register struct {
 	Username string `json:"login"`
 	Password string `json:"password"`
 }
 
-type RegisterGoodResponse struct {
-	Status string `json:"status"`
-}
-
-func (r *RegisterRequest) Validate() error {
+func (r *Register) Validate() error {
 	return validation.ValidateStruct(r,
 		validation.Field(&r.Username,
 			validation.Required.Error("username is required"),
