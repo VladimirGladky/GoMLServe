@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package model;
+
+option go_package = "./proto/model";
+
+service BertService {
+  rpc Predict (BertRequest) returns (BertResponse);
+}
+
+message BertRequest {
+  string text = 1;
+}
+
+message BertResponse {
+  repeated float logits = 1;
+}

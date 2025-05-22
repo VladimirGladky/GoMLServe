@@ -1,6 +1,7 @@
 package service
 
 import (
+	model2 "GoMLServe/gen_go/proto/model"
 	"GoMLServe/internal/domain/models"
 	"GoMLServe/internal/repository"
 	"GoMLServe/pkg/jwt"
@@ -10,6 +11,8 @@ import (
 	"fmt"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"time"
 )
 
@@ -20,6 +23,7 @@ var (
 type MLServiceInterface interface {
 	Login(login *models.Login) (string, error)
 	Register(register *models.Register) error
+	Predict(predict *models.Phrase) (*models.Predict, error)
 }
 
 type MLService struct {
@@ -80,4 +84,32 @@ func (s *MLService) Register(register *models.Register) error {
 	}
 	logger.GetLoggerFromCtx(s.ctx).Info("user registered")
 	return nil
+}
+
+func (s *MLService) Predict(predict *models.Phrase) (*models.Predict, error) {
+	if predict.Text == "" {
+		return nil, fmt.Errorf("text cannot be empty")
+	}
+	conn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		logger.GetLoggerFromCtx(s.ctx).Error("error creating grpc client: %v", zap.Error(err))
+		return nil, fmt.Errorf("error creating grpc client: %v", err)
+	}
+	defer conn.Close()
+	c := model2.NewBertServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	logger.GetLoggerFromCtx(s.ctx).Info("predict", zap.String("text", predict.Text))
+	res, err := c.Predict(ctx, &model2.BertRequest{Text: predict.Text})
+	if err != nil {
+		logger.GetLoggerFromCtx(s.ctx).Error("error making grpc request: %v", zap.Error(err))
+		return nil, fmt.Errorf("error making grpc request: %v", err)
+	}
+	if res == nil {
+		return nil, fmt.Errorf("empty response from server")
+	}
+	if len(res.Logits) == 0 {
+		return nil, fmt.Errorf("server returned no logits")
+	}
+	return &models.Predict{Res: res.Logits}, nil
 }

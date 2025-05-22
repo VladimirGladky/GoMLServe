@@ -118,6 +118,35 @@ func (s *MLServer) LoginHandler() gin.HandlerFunc {
 
 func (s *MLServer) PredictHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-
+		defer func() {
+			if rec := recover(); rec != nil {
+				c.JSON(500, gin.H{
+					"error": rec,
+				})
+			}
+		}()
+		if c.Request.Method != "POST" {
+			c.JSON(http.StatusMethodNotAllowed, gin.H{
+				"error": "method not allowed",
+			})
+			return
+		}
+		var text *models.Phrase
+		if err := c.ShouldBindJSON(&text); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		prediction, err := s.MLService.Predict(text)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"prediction": prediction,
+		})
 	}
 }
