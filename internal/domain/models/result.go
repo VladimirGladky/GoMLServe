@@ -1,0 +1,6 @@
+package models
+
+type Result struct {
+	Text string `json:"text"`
+	Res  string `json:"res"`
+}

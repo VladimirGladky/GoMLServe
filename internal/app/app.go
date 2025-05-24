@@ -8,6 +8,7 @@ import (
 	"GoMLServe/pkg/logger"
 	"GoMLServe/pkg/postgres"
 	"context"
+	"fmt"
 	"go.uber.org/zap"
 	"os"
 	"os/signal"
@@ -43,13 +44,22 @@ func (a *App) MustRun() {
 }
 
 func (a *App) Run() error {
-	errCh := make(chan error, 1)
+	errCh := make(chan error, 2)
 	a.wg.Add(1)
 	go func() {
 		logger.GetLoggerFromCtx(a.ctx).Info("Server started")
 		defer a.wg.Done()
 		if err := a.MLServer.Run(); err != nil {
 			errCh <- err
+			a.cancel()
+		}
+	}()
+	a.wg.Add(1)
+	go func() {
+		defer a.wg.Done()
+		logger.GetLoggerFromCtx(a.ctx).Info("RabbitMQ consumer starting")
+		if err := a.MLServer.MLService.StartMLTaskConsumer(); err != nil {
+			errCh <- fmt.Errorf("RabbitMQ consumer error: %w", err)
 			a.cancel()
 		}
 	}()

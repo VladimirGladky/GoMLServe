@@ -3,3 +3,10 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT NOT NULL UNIQUE,
     pass_hash BYTEA NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS user_expressions (
+    id TEXT NOT NULL UNIQUE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expr TEXT NOT NULL,
+    res TEXT NOT NULL
+);

@@ -5,11 +5,14 @@ import (
 	"GoMLServe/internal/domain/models"
 	"GoMLServe/internal/repository"
 	"GoMLServe/internal/service"
+	"GoMLServe/pkg/logger"
 	"context"
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	"net/http"
+	"strings"
 )
 
 type MLServer struct {
@@ -28,6 +31,7 @@ func (s *MLServer) Run() error {
 	router.POST("/api/v1/register", s.RegisterHandler())
 	router.POST("/api/v1/login", s.LoginHandler())
 	router.POST("/api/v1/predict", s.PredictHandler())
+	router.GET("/api/v1/result/:id", s.GetResultHandler())
 	err := router.Run(s.cfg.Host + ":" + s.cfg.Port)
 	if err != nil {
 		return fmt.Errorf("unable to start server: %w", err)
@@ -125,6 +129,21 @@ func (s *MLServer) PredictHandler() gin.HandlerFunc {
 				})
 			}
 		}()
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "Unauthorized",
+			})
+			return
+		}
+		parts := strings.Split(authHeader, " ")
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "Unauthorized",
+			})
+			return
+		}
+		tokenString := parts[1]
 		if c.Request.Method != "POST" {
 			c.JSON(http.StatusMethodNotAllowed, gin.H{
 				"error": "method not allowed",
@@ -138,7 +157,7 @@ func (s *MLServer) PredictHandler() gin.HandlerFunc {
 			})
 			return
 		}
-		prediction, err := s.MLService.Predict(text)
+		id, err := s.MLService.Predict(text, tokenString)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": err.Error(),
@@ -146,7 +165,52 @@ func (s *MLServer) PredictHandler() gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
-			"prediction": prediction,
+			"id": id,
+		})
+	}
+}
+
+func (s *MLServer) GetResultHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				c.JSON(500, gin.H{
+					"error": rec,
+				})
+			}
+		}()
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "Unauthorized",
+			})
+			return
+		}
+		parts := strings.Split(authHeader, " ")
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "Unauthorized",
+			})
+			return
+		}
+		tokenString := parts[1]
+		if c.Request.Method != "GET" {
+			c.JSON(http.StatusMethodNotAllowed, gin.H{
+				"error": "method not allowed",
+			})
+			return
+		}
+		id := c.Param("id")
+		logger.GetLoggerFromCtx(s.ctx).Info("get id", zap.String("id", id))
+		result, err := s.MLService.GetResult(tokenString, id)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"result": result,
 		})
 	}
 }
